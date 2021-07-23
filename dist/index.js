@@ -9357,25 +9357,25 @@ const getSpecifiedUsers = () => {
 const getParams = () => {
   const { payload } = github.context || {};
   const { repository } = payload || {};
-  // const currentRepo = repository.full_name;
+  const currentRepo = repository.full_name;
 
   return {
-    currentRepo: 'percipient-ai/mirage-ui',
+    currentRepo,
     org: core.getInput('organization'),
-    repos: ['percipient-ai/mirage-ui'], // getRepositories(currentRepo),
+    repos: getRepositories(currentRepo),
     sortBy: core.getInput('sort-by'),
-    githubToken: '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', // core.getInput('token'),
-    periodLength: 30, // getPeriod(),
+    githubToken: core.getInput('token'),
+    periodLength: getPeriod(),
     displayCharts: parseBoolean(core.getInput('charts')),
     disableLinks: parseBoolean(core.getInput('disable-links')),
-    pullRequestId: 'MDExOlB1bGxSZXF1ZXN0Njk2MTQ5Njc1', // getPrId(),
+    pullRequestId: getPrId(),
     users: getSpecifiedUsers(),
   };
 };
 
 const run = async () => {
   try {
-    // validateEnv(github);
+    validateEnv(github);
     await execute(getParams());
     core.info('Action successfully executed');
   } catch (error) {
