@@ -6,9 +6,9 @@ module.exports = (pullRequest) => {
 
   const regexp = new RegExp(`(${TABLE_TITLE})`);
 
-  core.debug('typeof', typeof body);
-  core.debug('test', regexp.test(body));
-  core.debug(JSON.stringify(body));
+  core.debug(`typeof: ${typeof body}`);
+  core.debug(`test: ${regexp.test(body)}`);
+  core.debug(`${JSON.stringify(body)}`);
 
   return regexp.test(body);
 };
