@@ -1373,12 +1373,18 @@ module.exports = require("https");
 /***/ 217:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
+const core = __webpack_require__(470);
 const { TABLE_TITLE } = __webpack_require__(648);
 
 module.exports = (pullRequest) => {
   const { body } = pullRequest || {};
 
-  const regexp = new RegExp(`\\n(${TABLE_TITLE})\\n`);
+  const regexp = new RegExp(`(${TABLE_TITLE})`);
+
+  core.debug(`typeof: ${typeof body}`);
+  core.debug(`test: ${regexp.test(body)}`);
+  core.debug(`${JSON.stringify(body)}`);
+
   return regexp.test(body);
 };
 
@@ -9351,25 +9357,25 @@ const getSpecifiedUsers = () => {
 const getParams = () => {
   const { payload } = github.context || {};
   const { repository } = payload || {};
-  const currentRepo = repository.full_name;
+  // const currentRepo = repository.full_name;
 
   return {
-    currentRepo,
+    currentRepo: 'percipient-ai/mirage-ui',
     org: core.getInput('organization'),
-    repos: getRepositories(currentRepo),
+    repos: ['percipient-ai/mirage-ui'], // getRepositories(currentRepo),
     sortBy: core.getInput('sort-by'),
-    githubToken: core.getInput('token'),
-    periodLength: getPeriod(),
+    githubToken: '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', // core.getInput('token'),
+    periodLength: 30, // getPeriod(),
     displayCharts: parseBoolean(core.getInput('charts')),
     disableLinks: parseBoolean(core.getInput('disable-links')),
-    pullRequestId: getPrId(),
+    pullRequestId: 'MDExOlB1bGxSZXF1ZXN0Njk2MTQ5Njc1', // getPrId(),
     users: getSpecifiedUsers(),
   };
 };
 
 const run = async () => {
   try {
-    validateEnv(github);
+    // validateEnv(github);
     await execute(getParams());
     core.info('Action successfully executed');
   } catch (error) {
