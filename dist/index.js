@@ -49,52 +49,6 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
-/***/ 3:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-/*!
- * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-
-function isObject(o) {
-  return Object.prototype.toString.call(o) === '[object Object]';
-}
-
-function isPlainObject(o) {
-  var ctor,prot;
-
-  if (isObject(o) === false) return false;
-
-  // If has modified constructor
-  ctor = o.constructor;
-  if (ctor === undefined) return true;
-
-  // If has modified prototype
-  prot = ctor.prototype;
-  if (isObject(prot) === false) return false;
-
-  // If constructor does not have an Object-specific method
-  if (prot.hasOwnProperty('isPrototypeOf') === false) {
-    return false;
-  }
-
-  // Most likely a plain Object
-  return true;
-}
-
-exports.isPlainObject = isPlainObject;
-
-
-/***/ }),
-
 /***/ 8:
 /***/ (function(module) {
 
@@ -1424,7 +1378,8 @@ const { TABLE_TITLE } = __webpack_require__(648);
 module.exports = (pullRequest) => {
   const { body } = pullRequest || {};
 
-  const regexp = new RegExp(`\\n(${TABLE_TITLE})\\n`);
+  const regexp = new RegExp(`(${TABLE_TITLE})`);
+
   return regexp.test(body);
 };
 
@@ -3292,7 +3247,17 @@ const get = __webpack_require__(854);
 const parseUser = __webpack_require__(359);
 const parseReview = __webpack_require__(158);
 
-module.exports = (data = {}) => {
+const filterNullAuthor = ({ author }) => !!author;
+
+const getFilteredReviews = (data, users) => {
+  const reviews = get(data, 'node.reviews.nodes', []).filter(filterNullAuthor);
+
+  return users
+    ? reviews.filter((review) => review.author && users.includes(review.author.login))
+    : reviews;
+};
+
+module.exports = (data = {}, users) => {
   const author = parseUser(get(data, 'node.author'));
   const publishedAt = new Date(get(data, 'node.publishedAt'));
   const handleReviews = (review) => parseReview(review, { publishedAt, authorLogin: author.login });
@@ -3302,7 +3267,7 @@ module.exports = (data = {}) => {
     publishedAt,
     cursor: data.cursor,
     id: get(data, 'node.id'),
-    reviews: get(data, 'node.reviews.nodes', []).map(handleReviews),
+    reviews: getFilteredReviews(data, users).map(handleReviews),
   };
 };
 
@@ -3829,6 +3794,52 @@ module.exports = {
   sum,
   tracker,
 };
+
+
+/***/ }),
+
+/***/ 356:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+/*!
+ * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+function isObject(o) {
+  return Object.prototype.toString.call(o) === '[object Object]';
+}
+
+function isPlainObject(o) {
+  var ctor,prot;
+
+  if (isObject(o) === false) return false;
+
+  // If has modified constructor
+  ctor = o.constructor;
+  if (ctor === undefined) return true;
+
+  // If has modified prototype
+  prot = ctor.prototype;
+  if (isObject(prot) === false) return false;
+
+  // If constructor does not have an Object-specific method
+  if (prot.hasOwnProperty('isPrototypeOf') === false) {
+    return false;
+  }
+
+  // Most likely a plain Object
+  return true;
+}
+
+exports.isPlainObject = isPlainObject;
 
 
 /***/ }),
@@ -4481,7 +4492,7 @@ exports.MixpanelPeople = MixpanelPeople;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-var isPlainObject = __webpack_require__(3);
+var isPlainObject = __webpack_require__(356);
 var universalUserAgent = __webpack_require__(796);
 
 function lowercaseKeys(object) {
@@ -8924,6 +8935,8 @@ module.exports = ({
 const { fetchPullRequests } = __webpack_require__(162);
 const { parsePullRequest } = __webpack_require__(120);
 
+const filterNullAuthor = ({ node }) => !!node.author;
+
 const ownerFilter = ({ org, repos }) => {
   if (org) return `org:${org}`;
   return (repos || []).map((r) => `repo:${r}`).join(' ');
@@ -8934,25 +8947,31 @@ const buildQuery = ({ org, repos, startDate }) => {
   return `type:pr -review:none sort:author-date ${ownerFilter({ org, repos })} ${dateFilter}`;
 };
 
-const getPullRequests = async (params) => {
+const getPullRequests = async (params, users) => {
   const { limit } = params;
   const data = await fetchPullRequests(params);
-  const results = data.search.edges.map(parsePullRequest);
+  const results = data.search.edges
+    .filter(filterNullAuthor)
+    .map((pr) => parsePullRequest(pr, users));
+
   if (results.length < limit) return results;
 
   const last = results[results.length - 1].cursor;
-  return results.concat(await getPullRequests({ ...params, after: last }));
+  return results.concat(await getPullRequests({ ...params, after: last }, users));
 };
 
 module.exports = ({
-  octokit,
-  org,
-  repos,
-  startDate,
-  itemsPerPage = 100,
+  octokit, org, repos, startDate, itemsPerPage = 100, users,
 }) => {
   const search = buildQuery({ org, repos, startDate });
-  return getPullRequests({ octokit, search, limit: itemsPerPage });
+  return getPullRequests(
+    {
+      octokit,
+      search,
+      limit: itemsPerPage,
+    },
+    users,
+  );
 };
 
 
@@ -9193,6 +9212,7 @@ const run = async (params) => {
     displayCharts,
     disableLinks,
     pullRequestId,
+    users,
   } = params;
   core.debug(`Params: ${JSON.stringify(params, null, 2)}`);
 
@@ -9206,7 +9226,11 @@ const run = async (params) => {
 
   const startDate = subtractDaysToDate(new Date(), periodLength);
   const pulls = await getPulls({
-    octokit, org, repos, startDate,
+    octokit,
+    org,
+    repos,
+    startDate,
+    users,
   });
   core.info(`Found ${pulls.length} pull requests to analyze`);
 
@@ -9214,7 +9238,10 @@ const run = async (params) => {
   core.info(`Analyzed stats for ${reviewers.length} pull request reviewers`);
 
   const tableOptions = {
-    displayCharts, disableLinks, sortBy, periodLength,
+    displayCharts,
+    disableLinks,
+    sortBy,
+    periodLength,
   };
   const table = buildTable(reviewers, tableOptions);
   core.debug('Stats table built successfully');
@@ -9316,6 +9343,12 @@ const getRepositories = (currentRepo) => {
 
 const getPrId = () => get(github, 'context.payload.pull_request.node_id');
 
+const getSpecifiedUsers = () => {
+  const input = core.getInput('users');
+
+  return input ? parseArray(input) : null;
+};
+
 const getParams = () => {
   const { payload } = github.context || {};
   const { repository } = payload || {};
@@ -9331,6 +9364,7 @@ const getParams = () => {
     displayCharts: parseBoolean(core.getInput('charts')),
     disableLinks: parseBoolean(core.getInput('disable-links')),
     pullRequestId: getPrId(),
+    users: getSpecifiedUsers(),
   };
 };
 
@@ -9409,52 +9443,6 @@ exports.Deprecation = Deprecation;
 
 /***/ }),
 
-/***/ 701:
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-/*!
- * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
- *
- * Copyright (c) 2014-2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-
-function isObject(o) {
-  return Object.prototype.toString.call(o) === '[object Object]';
-}
-
-function isPlainObject(o) {
-  var ctor,prot;
-
-  if (isObject(o) === false) return false;
-
-  // If has modified constructor
-  ctor = o.constructor;
-  if (ctor === undefined) return true;
-
-  // If has modified prototype
-  prot = ctor.prototype;
-  if (isObject(prot) === false) return false;
-
-  // If constructor does not have an Object-specific method
-  if (prot.hasOwnProperty('isPrototypeOf') === false) {
-    return false;
-  }
-
-  // Most likely a plain Object
-  return true;
-}
-
-exports.isPlainObject = isPlainObject;
-
-
-/***/ }),
-
 /***/ 715:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -9489,7 +9477,7 @@ module.exports = (value) => parser(value, {
 /***/ 731:
 /***/ (function(module) {
 
-module.exports = {"name":"pull-request-stats","version":"2.0.0","description":"Github action to print relevant stats about Pull Request reviewers","main":"dist/index.js","scripts":{"build":"ncc build src/index.js","test":"jest"},"keywords":[],"author":"Manuel de la Torre","license":"agpl-3.0","jest":{"testEnvironment":"node","testMatch":["**/?(*.)+(spec|test).[jt]s?(x)"]},"dependencies":{"@actions/core":"^1.2.6","@actions/github":"^4.0.0","humanize-duration":"^3.25.1","jsurl":"^0.1.5","lodash.get":"^4.4.2","markdown-table":"^2.0.0","mixpanel":"^0.13.0"},"devDependencies":{"@zeit/ncc":"^0.22.3","eslint":"^7.2.0","eslint-config-airbnb-base":"14.2.1","eslint-plugin-import":"^2.22.1","eslint-plugin-jest":"^24.3.3","jest":"^26.6.3"}};
+module.exports = {"name":"pull-request-stats","version":"2.0.2","description":"Github action to print relevant stats about Pull Request reviewers","main":"dist/index.js","scripts":{"build":"ncc build src/index.js","test":"jest"},"keywords":[],"author":"Manuel de la Torre","license":"agpl-3.0","jest":{"testEnvironment":"node","testMatch":["**/?(*.)+(spec|test).[jt]s?(x)"]},"dependencies":{"@actions/core":"^1.2.6","@actions/github":"^4.0.0","humanize-duration":"^3.25.1","jsurl":"^0.1.5","lodash.get":"^4.4.2","markdown-table":"^2.0.0","mixpanel":"^0.13.0"},"devDependencies":{"@zeit/ncc":"^0.22.3","eslint":"^7.2.0","eslint-config-airbnb-base":"14.2.1","eslint-plugin-import":"^2.22.1","eslint-plugin-jest":"^24.3.3","jest":"^26.6.3"}};
 
 /***/ }),
 
@@ -9512,7 +9500,7 @@ function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'defau
 
 var endpoint = __webpack_require__(385);
 var universalUserAgent = __webpack_require__(796);
-var isPlainObject = __webpack_require__(701);
+var isPlainObject = __webpack_require__(356);
 var nodeFetch = _interopDefault(__webpack_require__(454));
 var requestError = __webpack_require__(463);
 
