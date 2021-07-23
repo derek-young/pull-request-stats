@@ -1373,17 +1373,12 @@ module.exports = require("https");
 /***/ 217:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-const core = __webpack_require__(470);
 const { TABLE_TITLE } = __webpack_require__(648);
 
 module.exports = (pullRequest) => {
   const { body } = pullRequest || {};
 
   const regexp = new RegExp(`(${TABLE_TITLE})`);
-
-  core.debug(`typeof: ${typeof body}`);
-  core.debug(`test: ${regexp.test(body)}`);
-  core.debug(`${JSON.stringify(body)}`);
 
   return regexp.test(body);
 };
