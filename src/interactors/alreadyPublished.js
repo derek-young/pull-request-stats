@@ -1,3 +1,4 @@
+const core = require('@actions/core');
 const { TABLE_TITLE } = require('../constants');
 
 module.exports = (pullRequest) => {
@@ -5,8 +6,9 @@ module.exports = (pullRequest) => {
 
   const regexp = new RegExp(`(${TABLE_TITLE})`);
 
-  return true;
+  core.debug('typeof', typeof body);
+  core.debug('test', regexp.test(body));
+  core.debug(JSON.stringify(body));
 
-  console.log('regexp.test(body)', regexp.test(body));
   return regexp.test(body);
 };
