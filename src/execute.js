@@ -24,6 +24,7 @@ const run = async (params) => {
     displayCharts,
     disableLinks,
     pullRequestId,
+    users,
   } = params;
   core.debug(`Params: ${JSON.stringify(params, null, 2)}`);
 
@@ -37,7 +38,11 @@ const run = async (params) => {
 
   const startDate = subtractDaysToDate(new Date(), periodLength);
   const pulls = await getPulls({
-    octokit, org, repos, startDate,
+    octokit,
+    org,
+    repos,
+    startDate,
+    users,
   });
   core.info(`Found ${pulls.length} pull requests to analyze`);
 
@@ -45,7 +50,10 @@ const run = async (params) => {
   core.info(`Analyzed stats for ${reviewers.length} pull request reviewers`);
 
   const tableOptions = {
-    displayCharts, disableLinks, sortBy, periodLength,
+    displayCharts,
+    disableLinks,
+    sortBy,
+    periodLength,
   };
   const table = buildTable(reviewers, tableOptions);
   core.debug('Stats table built successfully');

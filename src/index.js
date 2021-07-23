@@ -21,6 +21,12 @@ const getRepositories = (currentRepo) => {
 
 const getPrId = () => get(github, 'context.payload.pull_request.node_id');
 
+const getSpecifiedUsers = () => {
+  const input = core.getInput('users');
+
+  return input ? parseArray(input) : null;
+};
+
 const getParams = () => {
   const { payload } = github.context || {};
   const { repository } = payload || {};
@@ -36,6 +42,7 @@ const getParams = () => {
     displayCharts: parseBoolean(core.getInput('charts')),
     disableLinks: parseBoolean(core.getInput('disable-links')),
     pullRequestId: getPrId(),
+    users: getSpecifiedUsers(),
   };
 };
 

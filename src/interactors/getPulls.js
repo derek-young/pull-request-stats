@@ -13,26 +13,29 @@ const buildQuery = ({ org, repos, startDate }) => {
   return `type:pr -review:none sort:author-date ${ownerFilter({ org, repos })} ${dateFilter}`;
 };
 
-const getPullRequests = async (params) => {
+const getPullRequests = async (params, users) => {
   const { limit } = params;
   const data = await fetchPullRequests(params);
   const results = data.search.edges
     .filter(filterNullAuthor)
-    .map(parsePullRequest);
+    .map((pr) => parsePullRequest(pr, users));
 
   if (results.length < limit) return results;
 
   const last = results[results.length - 1].cursor;
-  return results.concat(await getPullRequests({ ...params, after: last }));
+  return results.concat(await getPullRequests({ ...params, after: last }, users));
 };
 
 module.exports = ({
-  octokit,
-  org,
-  repos,
-  startDate,
-  itemsPerPage = 100,
+  octokit, org, repos, startDate, itemsPerPage = 100, users,
 }) => {
   const search = buildQuery({ org, repos, startDate });
-  return getPullRequests({ octokit, search, limit: itemsPerPage });
+  return getPullRequests(
+    {
+      octokit,
+      search,
+      limit: itemsPerPage,
+    },
+    users,
+  );
 };
