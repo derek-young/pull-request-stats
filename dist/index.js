@@ -8943,7 +8943,7 @@ const ownerFilter = ({ org, repos }) => {
 };
 
 const buildQuery = ({ org, repos, startDate }) => {
-  const dateFilter = `created:>=${startDate.toISOString()}`;
+  const dateFilter = `created:>=${'2021-08-01T06:00:00.000Z'}`;
   return `type:pr -review:none sort:author-date ${ownerFilter({ org, repos })} ${dateFilter}`;
 };
 
